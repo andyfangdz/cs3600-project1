@@ -77,6 +77,10 @@ def tinyMazeSearch(problem):
 
 
 class ImmutableState:
+    """
+    Note: This does use more memory but the complexity stays the same.
+    Old states will be garbage-collected.
+    """
 
     def __init__(self, state, path=None, actions=None, cost=0):
         if actions is None:
@@ -89,11 +93,23 @@ class ImmutableState:
         self.cost = cost
 
     def visited(self, state):
-        return state in self.path
+        return self.state_hash(state) in self.path
+
+    def state_hash(self, state=None):
+        if state is None:
+            state = self.state
+        hash = ""
+        try:
+            hash_dict = vars(state)
+            hash = ", ".join(["%s: %s" % (str(k), str(v)) for k, v in
+                              hash_dict.iteritems()])
+        except TypeError:
+            hash = state
+        return hash
 
     def mutate(self, action, next_state, cost=0):
         return ImmutableState(next_state,
-                              self.path[:] + [next_state],
+                              self.path[:] + [self.state_hash(next_state)],
                               self.actions[:] + [action],
                               self.cost + cost)
 
@@ -107,10 +123,9 @@ def pushWithCost(container, item, cost, useCost):
 
 def searchWithContainer(problem, container,
                         reverseSequence=False,  # DFS
-                        useCost=False,          # UCS, containers with cost
-                        heuristic=None
+                        useCost=False,  # UCS, containers with cost
+                        heuristic=None  # heuristic for A*
                         ):
-
     if heuristic is None:
         heuristic = nullHeuristic
 
@@ -123,9 +138,9 @@ def searchWithContainer(problem, container,
         if problem.isGoalState(current_state.state):
             return current_state.actions
 
-        if current_state.state in visited:
+        if current_state.state_hash() in visited:
             continue
-        visited.append(current_state.state)
+        visited.append(current_state.state_hash())
 
         successors = problem.getSuccessors(current_state.state)
         if reverseSequence:
@@ -133,10 +148,12 @@ def searchWithContainer(problem, container,
 
         for successor, action, cost in successors:
             next_state = current_state.mutate(action, successor, cost)
-            if successor not in visited and not current_state.visited(successor):
+            if successor not in visited and not current_state.visited(
+                    successor):
                 pushWithCost(con,
                              next_state,
-                             next_state.cost + heuristic(next_state.state, problem),
+                             next_state.cost +
+                             heuristic(next_state.state, problem),
                              useCost)
 
 
@@ -157,8 +174,6 @@ def depthFirstSearch(problem):
     print "Start's successors:", problem.getSuccessors(problem.getStartState())
     """
     return searchWithContainer(problem, util.Stack, reverseSequence=True)
-
-
 
 
 def breadthFirstSearch(problem):
